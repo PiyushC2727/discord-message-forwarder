@@ -144,9 +144,55 @@ function prepareAttachments(message) {
  * Builds embeds array
  */
 function prepareEmbeds(message) {
-  if (!message.embeds || message.embeds.length === 0) return [];
-  // Clone embeds
-  return message.embeds.map(e => EmbedBuilder.from(e));
+  const result = [];
+  if (message.embeds && message.embeds.length > 0) {
+    message.embeds.forEach(e => {
+      try {
+        result.push(EmbedBuilder.from(e));
+      } catch (err) {}
+    });
+  }
+
+  // If no standard embeds exist, but message has Discord v2 Components (Drop announcement / landed box)
+  if (result.length === 0 && message.components && message.components.length > 0) {
+    const textLines = [];
+    let mediaUrl = null;
+
+    const walk = (item) => {
+      if (!item) return;
+      if (item.content) textLines.push(item.content);
+      if (item.media?.url) mediaUrl = item.media.url;
+      if (Array.isArray(item.components)) item.components.forEach(walk);
+      if (Array.isArray(item.items)) item.items.forEach(walk);
+    };
+    message.components.forEach(walk);
+
+    if (textLines.length > 0 || mediaUrl) {
+      const embed = new EmbedBuilder().setColor(0x7053ff);
+      let title = '';
+      const descLines = [];
+      let footer = '';
+
+      for (const line of textLines) {
+        if (line.startsWith('# ')) {
+          title = line.replace(/^#\s+/, '').trim();
+        } else if (line.startsWith('-# ')) {
+          footer = line.replace(/^-#\s+/, '').replace(/\*\*/g, '').trim();
+        } else {
+          descLines.push(line);
+        }
+      }
+
+      if (title) embed.setTitle(title);
+      if (descLines.length > 0) embed.setDescription(descLines.join('\n\n'));
+      if (mediaUrl) embed.setImage(mediaUrl);
+      if (footer) embed.setFooter({ text: footer });
+
+      result.push(embed);
+    }
+  }
+
+  return result;
 }
 
 /**

@@ -147,14 +147,23 @@ function parseTrackedAuthorIds() {
       }
     }
 
-    if (message.components && Array.isArray(message.components)) {
-      for (const row of message.components) {
-        if (row.components && Array.isArray(row.components)) {
-          for (const comp of row.components) {
-            if (comp.label) parts.push(comp.label);
-          }
-        }
+    // Deep recursive component text extractor (supports Discord Components v2, text elements, media, buttons)
+    const extractFromComponent = (item) => {
+      if (!item) return;
+      if (item.label) parts.push(item.label);
+      if (item.content) parts.push(item.content);
+      if (item.customId || item.custom_id) parts.push(item.customId || item.custom_id);
+      if (item.description) parts.push(item.description);
+      if (Array.isArray(item.components)) {
+        item.components.forEach(extractFromComponent);
       }
+      if (Array.isArray(item.items)) {
+        item.items.forEach(extractFromComponent);
+      }
+    };
+
+    if (message.components && Array.isArray(message.components)) {
+      message.components.forEach(extractFromComponent);
     }
 
     if (message.attachments) {
