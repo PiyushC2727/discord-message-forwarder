@@ -11,20 +11,34 @@ services:
       - key: USER_TOKEN
         sync: false
       - key: SOURCE_CHANNEL_ID
-        sync: false
+        value: "1491002411198714008"
       - key: TARGET_CHANNEL_ID
-        sync: false
+        value: "775723855733588002"
       - key: TRACKED_USER_IDS
-        sync: false
-      - key: TAG_USER_ID
-        sync: false
+        value: "1555661476839030826,960882470029524992"
+      - key: REQUIRED_KEYWORDS
+        value: "drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box"
+      - key: KEYWORD_FILTER_AUTHORS
+        value: "1555661476839030826,960882470029524992"
+      - key: KEYWORD_FILTER_BOTS_ONLY
+        value: "false"
+      - key: TIMO_KEYWORDS
+        value: "drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box"
       - key: MENTION_EVERYONE
+        value: "true"
+      - key: RAPID_PING_COUNT
+        value: "5"
+      - key: RAPID_PING_DELAY_MS
+        value: "150"
+      - key: DIRECT_ALERT_USER_IDS
+        value: "775718882701869146,644857599971295232"
+      - key: ENABLE_DIRECT_CALL_RING
         value: "true"
       - key: USE_WEBHOOKS
         value: "true"
-      - key: REQUIRED_KEYWORDS
-        value: "giveaway,drop"
-      - key: KEYWORD_FILTER_AUTHORS
-        value: "1555661476839030826"
-      - key: KEYWORD_FILTER_BOTS_ONLY
+      - key: FORWARD_EDITS
+        value: "true"
+      - key: FORWARD_ATTACHMENTS
+        value: "true"
+      - key: INCLUDE_MESSAGE_LINK
         value: "true"
