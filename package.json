@@ -1,0 +1,25 @@
+{
+  "name": "discord-message-forwarder",
+  "version": "1.0.0",
+  "description": "Discord Bot that tracks messages in one channel and forwards them to another channel with attachments, embeds, and webhook avatar mirroring.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "discord",
+    "discordjs",
+    "message-forwarder",
+    "channel-mirror",
+    "webhook"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "discord.js-selfbot-v13": "^3.7.1",
+    "dotenv": "^16.4.5"
+  }
+}

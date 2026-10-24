@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: discord-message-forwarder
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: USER_TOKEN
+        sync: false
+      - key: SOURCE_CHANNEL_ID
+        sync: false
+      - key: TARGET_CHANNEL_ID
+        sync: false
+      - key: TRACKED_USER_IDS
+        sync: false
+      - key: TAG_USER_ID
+        sync: false
+      - key: MENTION_EVERYONE
+        value: "true"
+      - key: USE_WEBHOOKS
+        value: "true"
+      - key: REQUIRED_KEYWORDS
+        value: "giveaway,drop"
+      - key: KEYWORD_FILTER_AUTHORS
+        value: "1555661476839030826"
+      - key: KEYWORD_FILTER_BOTS_ONLY
+        value: "true"
