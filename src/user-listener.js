@@ -55,7 +55,7 @@ export function startUserListener(botClient) {
     if (!config.isSourceMessage(message)) return;
 
     // 2. Author Guard (Tracked bot / person)
-    if (!config.isAuthorTracked(message.author.id, message.author.bot)) return;
+    if (!config.isAuthorTracked(message.author.id, message.author.bot, message.author.tag || message.author.username)) return;
 
     // 3. Keyword Content Guard (Giveaway / Drop from Syncie bot)
     if (!config.isMessageContentAllowed(message)) {
@@ -85,7 +85,7 @@ export function startUserListener(botClient) {
       }
     }
     if (!config.isSourceMessage(newMsg)) return;
-    if (!config.isAuthorTracked(newMsg.author.id, newMsg.author.bot)) return;
+    if (!config.isAuthorTracked(newMsg.author.id, newMsg.author.bot, newMsg.author.tag || newMsg.author.username)) return;
 
     // Check if the edited message satisfies the content filter (e.g. countdown edited into "THE DROP HAS LANDED")
     if (!config.isMessageContentAllowed(newMsg)) {

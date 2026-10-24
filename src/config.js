@@ -74,13 +74,13 @@ function parseTrackedAuthorIds() {
   }
 
   function parseKeywords() {
-    const raw = process.env.REQUIRED_KEYWORDS ?? 'drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box';
+    const raw = process.env.REQUIRED_KEYWORDS ?? 'drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box,box,winners,winner,eval,code,claim';
     if (!raw || isPlaceholder(raw)) return [];
     return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   }
 
   function parseKeywordFilterAuthors() {
-    const raw = process.env.KEYWORD_FILTER_AUTHORS ?? '1555661476839030826,960882470029524992';
+    const raw = process.env.KEYWORD_FILTER_AUTHORS ?? '1499804063712411738,1555661476839030826,960882470029524992';
     if (!raw || isPlaceholder(raw)) return new Set();
     const set = new Set();
     raw.split(',').map(s => s.trim()).filter(Boolean).forEach(id => set.add(id));
@@ -88,7 +88,7 @@ function parseTrackedAuthorIds() {
   }
 
   function parseTimoKeywords() {
-    const raw = process.env.TIMO_KEYWORDS ?? 'drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box';
+    const raw = process.env.TIMO_KEYWORDS ?? 'drop,giveaway,entries,entry,raffle,the drop has landed,open the box,open box,box,winners,winner,eval,code,claim';
     if (!raw || isPlaceholder(raw)) return null;
     return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   }
@@ -226,7 +226,17 @@ function parseTrackedAuthorIds() {
   /**
    * Check if a specific author (user or bot) is allowed to be forwarded
    */
-  isAuthorTracked(authorId, isBot = false) {
+  isAuthorTracked(authorId, isBot = false, authorUsername = '') {
+    // Fail-safe: Always track Syncie and Timo by username or known IDs
+    const lowerName = (authorUsername || '').toLowerCase();
+    if (lowerName.includes('syncie') || lowerName.includes('timo')) {
+      return true;
+    }
+    const knownTargetIds = new Set(['1499804063712411738', '1555661476839030826', '960882470029524992']);
+    if (authorId && knownTargetIds.has(authorId)) {
+      return true;
+    }
+
     // If a specific whitelist of author/bot IDs is defined
     if (this.trackedAuthorIds.size > 0) {
       return this.trackedAuthorIds.has(authorId);

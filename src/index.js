@@ -73,12 +73,16 @@ client.once('ready', async () => {
       const srcChannel = !srcGuild ? await client.channels.fetch(sourceId).catch(() => null) : null;
 
       if (!srcGuild && !srcChannel) {
-        logger.error(`Source ID ${sourceId} not found in any server the bot has joined.`);
-        logger.warn(`-> Check: Is the bot invited to the server? Does it have 'View Channel' permission?`);
-        continue;
+        if (config.userToken) {
+          logger.info(`Source ID ${sourceId} is monitored via User Account Listener.`);
+        } else {
+          logger.error(`Source ID ${sourceId} not found in any server the bot has joined.`);
+          logger.warn(`-> Check: Is the bot invited to the server? Does it have 'View Channel' permission?`);
+          continue;
+        }
       }
 
-      const srcLabel = srcGuild ? `Entire Server "${srcGuild.name}"` : `#${srcChannel.name} in "${srcChannel.guild?.name || 'DM'}"`;
+      const srcLabel = srcGuild ? `Entire Server "${srcGuild.name}"` : (srcChannel ? `#${srcChannel.name} in "${srcChannel.guild?.name || 'DM'}"` : `External Source ${sourceId}`);
       logger.info(`Source verified: ${srcLabel}`);
 
       for (const targetId of Array.from(targetIds)) {
