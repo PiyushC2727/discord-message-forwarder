@@ -96,42 +96,45 @@ export async function sendDropLandedAlert(message, botClient) {
 
   // 2. Server Alert to target channel (#general in Gaming Hub)
   const targetIds = config.getTargetsForMessage(message);
+  logger.info(`Routing drop landed alert to ${targetIds.length} target channel(s): [${targetIds.join(', ')}]`);
+
   for (const targetId of targetIds) {
-    (async () => {
-      try {
-        const targetChannel = await botClient.channels.fetch(targetId).catch(() => null);
-        if (!targetChannel || !targetChannel.isTextBased()) return;
+    try {
+      const targetChannel = await botClient.channels.fetch(targetId).catch(() => null);
+      if (!targetChannel || !targetChannel.isTextBased()) {
+        logger.warn(`Target channel ${targetId} not found or not text based.`);
+        continue;
+      }
 
-        const serverAlertText = `🚨 @everyone **THE DROP HAS LANDED!** 🚨\n\n👉 **[CLICK HERE TO OPEN THE BOX IN HYPERPROP](${jumpUrl})**`;
+      const serverAlertText = `🚨 @everyone **THE DROP HAS LANDED!** 🚨\n\n👉 **[CLICK HERE TO OPEN THE BOX IN HYPERPROP](${jumpUrl})**`;
 
-        const sent = await targetChannel.send({
-          content: serverAlertText,
-          allowedMentions: { parse: ['everyone'] }
-        });
-        recordSentMessage(sent.id);
+      const sent = await targetChannel.send({
+        content: serverAlertText,
+        allowedMentions: { parse: ['everyone'] }
+      });
+      recordSentMessage(sent.id);
 
-        // Rapid @everyone burst pings (5x) so phone vibrates
-        if (config.rapidPingCount > 0) {
-          for (let i = 0; i < config.rapidPingCount; i++) {
-            const ping = await targetChannel.send({
-              content: '@everyone',
-              allowedMentions: { parse: ['everyone'] }
-            }).catch(() => null);
-            if (ping) recordSentMessage(ping.id);
+      // Rapid @everyone burst pings (5x) so phone vibrates
+      if (config.rapidPingCount > 0) {
+        for (let i = 0; i < config.rapidPingCount; i++) {
+          const ping = await targetChannel.send({
+            content: '@everyone',
+            allowedMentions: { parse: ['everyone'] }
+          }).catch(() => null);
+          if (ping) recordSentMessage(ping.id);
 
-            if (i < config.rapidPingCount - 1 && config.rapidPingDelayMs > 0) {
-              await new Promise(r => setTimeout(r, config.rapidPingDelayMs));
-            }
+          if (i < config.rapidPingCount - 1 && config.rapidPingDelayMs > 0) {
+            await new Promise(r => setTimeout(r, config.rapidPingDelayMs));
           }
         }
-
-        stats.forwardedCount++;
-        logger.success(`✔ [SERVER ALERT] Sent drop landed @everyone alert to #${targetChannel.name}!`);
-      } catch (err) {
-        stats.failedCount++;
-        logger.error(`Error sending drop alert to target ${targetId}: ${err.message}`);
       }
-    })();
+
+      stats.forwardedCount++;
+      logger.success(`✔ [SERVER ALERT] Sent drop landed @everyone alert to #${targetChannel.name}!`);
+    } catch (err) {
+      stats.failedCount++;
+      logger.error(`Error sending drop alert to target ${targetId}: ${err.message}`);
+    }
   }
 }
 

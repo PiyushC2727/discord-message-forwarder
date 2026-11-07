@@ -145,11 +145,38 @@ async function triggerDirectCallRing(userClient) {
 
       const dm = await user.createDM();
       logger.info(`📞 Attempting Discord DM Call Ring to ${user.tag || user.username}...`);
+
+      // 1. Send Gateway Opcode 4 (Voice State Update) to initiate 1-on-1 DM call
+      dm.shard?.send({
+        op: 4,
+        d: {
+          guild_id: null,
+          channel_id: dm.id,
+          self_mute: false,
+          self_deaf: false,
+          self_video: false
+        }
+      });
+
+      await new Promise(r => setTimeout(r, 350));
+
+      // 2. Ring the user's phone / desktop app
       await dm.ring();
       logger.success(`📞 [RINGING] Initiated incoming call ring to ${user.tag || user.username}!`);
 
       setTimeout(async () => {
         try {
+          // Leave DM call
+          dm.shard?.send({
+            op: 4,
+            d: {
+              guild_id: null,
+              channel_id: null,
+              self_mute: false,
+              self_deaf: false,
+              self_video: false
+            }
+          });
           await userClient.api.channels(dm.id).call.ring.delete().catch(() => null);
         } catch (_) {}
       }, 15000);

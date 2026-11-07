@@ -1,4 +1,11 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __configDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__configDir, '..', '.env') });
+dotenv.config();
+
 import { logger } from './utils/logger.js';
 
 function parseBoolean(value, defaultValue) {
@@ -282,6 +289,15 @@ function parseTrackedAuthorIds() {
       const guildTargets = this.channelMappings.get(guildId);
       if (guildTargets) guildTargets.forEach(t => targets.add(t));
     }
+
+    // Safety fallback: If target list is empty, default to configured TARGET_CHANNEL_ID
+    if (targets.size === 0) {
+      const fallbackTarget = process.env.TARGET_CHANNEL_ID?.trim();
+      if (fallbackTarget && !isPlaceholder(fallbackTarget)) {
+        fallbackTarget.split(',').map(s => s.trim()).filter(Boolean).forEach(t => targets.add(t));
+      }
+    }
+
     return Array.from(targets);
   },
 
