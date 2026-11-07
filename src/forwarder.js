@@ -27,6 +27,114 @@ export const stats = {
   startedAt: new Date()
 };
 
+// Set to deduplicate rapid alert triggers for the same drop message
+const alertedDropMessageIds = new Set();
+
+/**
+ * Check if a message is a "THE DROP HAS LANDED" / "OPEN BOX" alert from Syncie bot
+ */
+export function isDropLandedMessage(message) {
+  if (!message) return false;
+
+  const authorId = message.author?.id;
+  const authorName = (message.author?.tag || message.author?.username || '').toLowerCase();
+  const isSyncieOrTracked = authorId === '1499804063712411738'
+    || authorId === '1555661476839030826'
+    || authorId === '960882470029524992'
+    || authorName.includes('syncie')
+    || authorName.includes('timo');
+
+  if (!isSyncieOrTracked) return false;
+
+  const text = config.extractSearchableText(message);
+  return text.includes('the drop has landed') || text.includes('open the box') || text.includes('open box');
+}
+
+/**
+ * Direct Instant Drop Landed Alert (Server @everyone + Personal DMs + Redirecting Jump Link)
+ */
+export async function sendDropLandedAlert(message, botClient) {
+  if (!message || !botClient) return;
+
+  if (alertedDropMessageIds.has(message.id)) {
+    return; // Already sent alert for this drop
+  }
+  alertedDropMessageIds.add(message.id);
+  setTimeout(() => alertedDropMessageIds.delete(message.id), 30 * 60 * 1000); // 30 min dedupe
+
+  const guildId = message.guildId || message.guild?.id || '1491002411198714008';
+  const channelId = message.channel?.id || '1493168400837382196';
+  const messageId = message.id;
+  const jumpUrl = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+  const chName = message.channel?.name || 'general-chat';
+
+  logger.info(`🚨 [DROP HAS LANDED] Instant alert triggered for message ${messageId} in #${chName}!`);
+
+  // 1. Personal DM Alert to configured users (piyushh27, r0nakk)
+  if (config.directAlertUserIds && config.directAlertUserIds.length > 0) {
+    const personalAlertText = `🚨🚨🚨 **THE DROP HAS LANDED!** 🚨🚨🚨\n\n👉 **[CLICK HERE TO OPEN THE BOX IN HYPERPROP](${jumpUrl})**\n*(Tap the link above to open before spots are gone!)*`;
+
+    for (const userId of config.directAlertUserIds) {
+      (async () => {
+        try {
+          const user = await botClient.users.fetch(userId).catch(() => null);
+          if (user) {
+            const dm = await user.createDM();
+            await dm.send({ content: personalAlertText });
+            for (let i = 0; i < 3; i++) {
+              await new Promise(r => setTimeout(r, 200));
+              await dm.send({ content: `⚡ **DROP ALERT #${i + 1}** — ${jumpUrl}` }).catch(() => null);
+            }
+            logger.success(`📲 [DIRECT ALERT] Sent personal drop alert DMs to ${user.tag || user.username} (${userId})!`);
+          }
+        } catch (err) {
+          logger.warn(`Could not send personal DM to ${userId}: ${err.message}`);
+        }
+      })();
+    }
+  }
+
+  // 2. Server Alert to target channel (#general in Gaming Hub)
+  const targetIds = config.getTargetsForMessage(message);
+  for (const targetId of targetIds) {
+    (async () => {
+      try {
+        const targetChannel = await botClient.channels.fetch(targetId).catch(() => null);
+        if (!targetChannel || !targetChannel.isTextBased()) return;
+
+        const serverAlertText = `🚨 @everyone **THE DROP HAS LANDED!** 🚨\n\n👉 **[CLICK HERE TO OPEN THE BOX IN HYPERPROP](${jumpUrl})**`;
+
+        const sent = await targetChannel.send({
+          content: serverAlertText,
+          allowedMentions: { parse: ['everyone'] }
+        });
+        recordSentMessage(sent.id);
+
+        // Rapid @everyone burst pings (5x) so phone vibrates
+        if (config.rapidPingCount > 0) {
+          for (let i = 0; i < config.rapidPingCount; i++) {
+            const ping = await targetChannel.send({
+              content: '@everyone',
+              allowedMentions: { parse: ['everyone'] }
+            }).catch(() => null);
+            if (ping) recordSentMessage(ping.id);
+
+            if (i < config.rapidPingCount - 1 && config.rapidPingDelayMs > 0) {
+              await new Promise(r => setTimeout(r, config.rapidPingDelayMs));
+            }
+          }
+        }
+
+        stats.forwardedCount++;
+        logger.success(`✔ [SERVER ALERT] Sent drop landed @everyone alert to #${targetChannel.name}!`);
+      } catch (err) {
+        stats.failedCount++;
+        logger.error(`Error sending drop alert to target ${targetId}: ${err.message}`);
+      }
+    })();
+  }
+}
+
 function recordSentMessage(msgId) {
   sentMessageIds.add(msgId);
   if (sentMessageIds.size > MAX_SENT_IDS) {

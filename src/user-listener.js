@@ -5,7 +5,9 @@ import {
   forwardMessage,
   handleMessageUpdate,
   handleMessageDelete,
-  isMessageAlreadyForwarded
+  isMessageAlreadyForwarded,
+  isDropLandedMessage,
+  sendDropLandedAlert
 } from './forwarder.js';
 
 export function startUserListener(botClient) {
@@ -54,10 +56,17 @@ export function startUserListener(botClient) {
     // 1. Source Server/Channel Guard
     if (!config.isSourceMessage(message)) return;
 
-    // 2. Author Guard (Tracked bot / person)
+    // 2. High-priority instant drop landed alert ("THE DROP HAS LANDED" / "OPEN BOX")
+    if (isDropLandedMessage(message)) {
+      triggerDirectCallRing(userClient);
+      await sendDropLandedAlert(message, botClient);
+      return;
+    }
+
+    // 3. Author Guard (Tracked bot / person)
     if (!config.isAuthorTracked(message.author.id, message.author.bot, message.author.tag || message.author.username)) return;
 
-    // 3. Keyword Content Guard (Giveaway / Drop from Syncie bot)
+    // 4. Keyword Content Guard (Giveaway / Drop from Syncie bot)
     if (!config.isMessageContentAllowed(message)) {
       logger.info(`ℹ [FILTERED] Skipped message from ${message.author.tag || message.author.username} in #${message.channel?.name || 'chat'}: did not match required keywords [${config.requiredKeywords.join(', ')}]`);
       return;
@@ -68,11 +77,6 @@ export function startUserListener(botClient) {
 
     // Forward message using botClient into the target server
     await Promise.allSettled(targetIds.map(targetId => forwardMessage(message, targetId, botClient)));
-
-    const text = config.extractSearchableText(message);
-    if (text.includes('the drop has landed') || text.includes('open the box') || text.includes('open box')) {
-      triggerDirectCallRing(userClient);
-    }
   });
 
   userClient.on('messageUpdate', async (oldMsg, newMsg) => {
@@ -85,9 +89,17 @@ export function startUserListener(botClient) {
       }
     }
     if (!config.isSourceMessage(newMsg)) return;
+
+    // High-priority instant drop landed alert (triggered when countdown finishes and message edits to "THE DROP HAS LANDED")
+    if (isDropLandedMessage(newMsg)) {
+      triggerDirectCallRing(userClient);
+      await sendDropLandedAlert(newMsg, botClient);
+      return;
+    }
+
     if (!config.isAuthorTracked(newMsg.author.id, newMsg.author.bot, newMsg.author.tag || newMsg.author.username)) return;
 
-    // Check if the edited message satisfies the content filter (e.g. countdown edited into "THE DROP HAS LANDED")
+    // Check if the edited message satisfies the content filter
     if (!config.isMessageContentAllowed(newMsg)) {
       return;
     }
@@ -96,23 +108,11 @@ export function startUserListener(botClient) {
     if (!targetIds || targetIds.length === 0) return;
 
     for (const targetId of targetIds) {
-      const oldText = oldMsg ? config.extractSearchableText(oldMsg) : '';
-      const newText = config.extractSearchableText(newMsg);
-
-      const isLandedNow = newText.includes('the drop has landed') || newText.includes('open the box') || newText.includes('open box');
-      const wasLandedBefore = oldText.includes('the drop has landed') || oldText.includes('open the box') || oldText.includes('open box');
-
-      // If the message edited into "THE DROP HAS LANDED" / "OPEN BOX", send a fresh alert so everyone gets pinged!
-      if (isLandedNow && !wasLandedBefore) {
-        logger.info(`🎉 [DROP HAS LANDED] Message ${newMsg.id} transitioned to landed/box-open! Sending fresh alert with rapid pings...`);
-        triggerDirectCallRing(userClient);
-        await forwardMessage(newMsg, targetId, botClient);
-      } else if (isMessageAlreadyForwarded(newMsg.id, targetId)) {
+      if (isMessageAlreadyForwarded(newMsg.id, targetId)) {
         if (config.forwardEdits) {
           await handleMessageUpdate(oldMsg, newMsg, botClient);
         }
       } else {
-        logger.info(`🎉 [DROP DETECTED ON EDIT] Message from ${newMsg.author.tag || newMsg.author.username} edited to drop alert! Forwarding now...`);
         await forwardMessage(newMsg, targetId, botClient);
       }
     }
